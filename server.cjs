@@ -84,8 +84,8 @@ app.get('/api/pokemons/:id', async function (req, res) {
       id: id,
       name: pokemons[id - 1].name,
       types: d.types.map(function (t) { return t.type.name; }),
-      heightM: d.height / 10,  // a API manda em decímetros
-      weightKg: d.weight / 10, // a API manda em hectogramas
+      heightM: d.height / 10,  
+      weightKg: d.weight / 10, 
       abilities: d.abilities.map(function (a) { return a.ability.name; })
     };
 

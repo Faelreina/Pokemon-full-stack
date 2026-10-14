@@ -1,6 +1,8 @@
-const express = require('express');
-const fs = require('fs');
-const path = require('path');
+import express from 'express';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url)); 
 
 
 if (typeof fetch !== 'function') {
@@ -59,7 +61,7 @@ app.get('/api/pokemons', function (req, res) {
   res.json(pokemons);
 });
 
-// Detalhes de um pokémon (busca na PokéAPI e guarda na memória para não buscar de novo)
+
 const cache = {};
 
 app.get('/api/pokemons/:id', async function (req, res) {
