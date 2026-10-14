@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pokédex</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Arial, sans-serif; background: #f2f5f7; color: #222; }
+
+    header { background: #e3350d; color: white; padding: 16px; text-align: center; }
+    h1 { margin: 0 0 12px; }
+
+    .abas { display: flex; justify-content: center; gap: 8px; margin-bottom: 12px; }
+    .abas button { padding: 8px 16px; border: 2px solid white; border-radius: 20px;
+      background: transparent; color: white; font-size: 1rem; cursor: pointer; }
+    .abas button.ativa { background: white; color: #e3350d; }
+
+    #busca { width: 100%; max-width: 400px; padding: 10px; border: none; border-radius: 8px; font-size: 1rem; }
+
+    main { max-width: 1000px; margin: 0 auto; padding: 16px; }
+    #aviso { text-align: center; padding: 24px; }
+    #aviso.erro { color: #b00020; }
+
+    #grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+    .card { position: relative; background: white; border: 2px solid #d5dde4; border-radius: 12px; }
+    .card:hover { border-color: #e3350d; }
+    .card-botao { width: 100%; padding: 12px; border: none; background: transparent; cursor: pointer;
+      display: flex; flex-direction: column; align-items: center; font-size: 1rem; }
+    .card-botao img { width: 96px; height: 96px; object-fit: contain; }
+    .pixel { image-rendering: pixelated; }
+    .sem-imagem { width: 96px; height: 96px; display: flex; align-items: center; justify-content: center;
+      background: #e9f1f5; border-radius: 50%; color: #8a9aa5; font-size: 2rem; }
+    .numero { align-self: flex-start; font-size: 0.8rem; color: #666; }
+    .nome { text-transform: capitalize; font-weight: bold; }
+    .tecnico { font-size: 0.75rem; color: #888; word-break: break-word; }
+    .coracao { position: absolute; top: 8px; right: 8px; width: 32px; height: 32px; border-radius: 50%;
+      border: 2px solid #d5dde4; background: white; color: #e3350d; font-size: 1rem; cursor: pointer; }
+
+    #fundo { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.6); align-items: center; justify-content: center; padding: 16px; }
+    #modal { position: relative; background: white; border-radius: 12px; padding: 24px; width: 100%;
+      max-width: 380px; max-height: 90vh; overflow-y: auto; text-align: center; }
+    #modal h2 { text-transform: capitalize; margin-top: 0; }
+    #modal img { width: 192px; height: 192px; object-fit: contain; }
+    #fechar { position: absolute; top: 8px; right: 12px; border: none; background: transparent;
+      font-size: 1.8rem; cursor: pointer; }
+    .tipos { display: flex; justify-content: center; gap: 8px; margin-bottom: 8px; }
+    .tipo { color: white; padding: 4px 12px; border-radius: 12px; text-transform: capitalize; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Pokédex</h1>
+    <div class="abas">
+      <button id="aba-todos" class="ativa">Pokédex</button>
+      <button id="aba-favoritos">Favoritos (0)</button>
+    </div>
+    <input id="busca" type="search" placeholder="Buscar por nome ou número...">
+  </header>
+
+  <main>
+    <p id="aviso" style="display:none"></p>
+    <div id="grade"></div>
+  </main>
+
+  <div id="fundo">
+    <div id="modal">
+      <button id="fechar" aria-label="Fechar">×</button>
+      <h2 id="modal-nome"></h2>
+      <div id="modal-imagem"></div>
+      <div id="modal-info"></div>
+    </div>
+  </div>
+
+  <script>
+    var API = 'https://pokeapi.co/api/v2';
+
+
+    var NOMES = [
+      'bulbasaur', 'ivysaur', 'venusaur', 'charmander', 'charmeleon', 'charizard', 'squirtle', 'wartortle', 'blastoise',
+      'caterpie', 'metapod', 'butterfree', 'weedle', 'kakuna', 'beedrill', 'pidgey', 'pidgeotto', 'pidgeot',
+      'rattata', 'raticate', 'spearow', 'fearow', 'ekans', 'arbok', 'pikachu', 'raichu', 'sandshrew', 'sandslash',
+      'nidoran-f', 'nidorina', 'nidoqueen', 'nidoran-m', 'nidorino', 'nidoking', 'clefairy', 'clefable', 'vulpix',
+      'ninetales', 'jigglypuff', 'wigglytuff', 'zubat', 'golbat', 'oddish', 'gloom', 'vileplume', 'paras', 'parasect',
+      'venonat', 'venomoth', 'diglett', 'dugtrio', 'meowth', 'persian', 'psyduck', 'golduck', 'mankey', 'primeape',
+      'growlithe', 'arcanine', 'poliwag', 'poliwhirl', 'poliwrath', 'abra', 'kadabra', 'alakazam', 'machop', 'machoke',
+      'machamp', 'bellsprout', 'weepinbell', 'victreebel', 'tentacool', 'tentacruel', 'geodude', 'graveler', 'golem',
+      'ponyta', 'rapidash', 'slowpoke', 'slowbro', 'magnemite', 'magneton', 'farfetchd', 'doduo', 'dodrio', 'seel',
+      'dewgong', 'grimer', 'muk', 'shellder', 'cloyster', 'gastly', 'haunter', 'gengar', 'onix', 'drowzee', 'hypno',
+      'krabby', 'kingler', 'voltorb', 'electrode', 'exeggcute', 'exeggutor', 'cubone', 'marowak', 'hitmonlee',
+      'hitmonchan', 'lickitung', 'koffing', 'weezing', 'rhyhorn', 'rhydon', 'chansey', 'tangela', 'kangaskhan',
+      'horsea', 'seadra', 'goldeen', 'seaking', 'staryu', 'starmie', 'mr-mime', 'scyther', 'jynx', 'electabuzz',
+      'magmar', 'pinsir', 'tauros', 'magikarp', 'gyarados', 'lapras', 'ditto', 'eevee', 'vaporeon', 'jolteon',
+      'flareon', 'porygon', 'omanyte', 'omastar', 'kabuto', 'kabutops', 'aerodactyl', 'snorlax', 'articuno',
+      'zapdos', 'moltres', 'dratini', 'dragonair', 'dragonite', 'mewtwo', 'mew'
+    ];
+
+
+    var CORES = {
+      normal: '#a8a77a', fire: '#ee8130', water: '#6390f0', electric: '#f7d02c',
+      grass: '#7ac74c', ice: '#96d9d6', fighting: '#c22e28', poison: '#a33ea1',
+      ground: '#e2bf65', flying: '#a98ff3', psychic: '#f95587', bug: '#a6b91a',
+      rock: '#b6a136', ghost: '#735797', dragon: '#6f35fc', dark: '#705746',
+      steel: '#b7b7ce', fairy: '#d685ad'
+    };
+
+    
+    var pokemons = NOMES.map(function (nome, i) {
+      return { id: i + 1, name: nome };
+    });
+
+    var favoritos = lerFavoritos();
+    var aba = 'todos';       
+    var pedidoAtual = 0;    
+
+    var elGrade = document.getElementById('grade');
+    var elAviso = document.getElementById('aviso');
+    var elBusca = document.getElementById('busca');
+    var elFundo = document.getElementById('fundo');
+
+   
+    function criarImagem(p) {
+      var img = document.createElement('img');
+      img.alt = '';
+      img.className = 'pixel';
+      img.src = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/' + p.id + '.png';
+      
+      img.onerror = function () {
+        var vazio = document.createElement('div');
+        vazio.className = 'sem-imagem';
+        vazio.textContent = '?';
+        if (img.parentNode) img.parentNode.replaceChild(vazio, img);
+      };
+      return img;
+    }
+
+    function lerFavoritos() {
+      try {
+        return JSON.parse(localStorage.getItem('favoritos')) || [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function ehFavorito(id) {
+      return favoritos.some(function (f) { return f.id === id; });
+    }
+
+    function favoritar(pokemon) {
+      if (ehFavorito(pokemon.id)) {
+        favoritos = favoritos.filter(function (f) { return f.id !== pokemon.id; });
+      } else {
+        favoritos.push({ id: pokemon.id, name: pokemon.name });
+      }
+      try {
+        localStorage.setItem('favoritos', JSON.stringify(favoritos));
+      } catch (e) {
+    
+      }
+      desenhar();
+    }
+
+
+    function desenhar() {
+      document.getElementById('aba-todos').className = aba === 'todos' ? 'ativa' : '';
+      document.getElementById('aba-favoritos').className = aba === 'favoritos' ? 'ativa' : '';
+      document.getElementById('aba-favoritos').textContent = 'Favoritos (' + favoritos.length + ')';
+
+      var lista = aba === 'todos' ? pokemons : favoritos;
+      var texto = elBusca.value.trim().toLowerCase();
+      var filtrados = lista.filter(function (p) {
+        return p.name.indexOf(texto) !== -1 || String(p.id) === texto;
+      });
+
+  
+      if (filtrados.length === 0) {
+        elAviso.style.display = 'block';
+        elAviso.textContent = (aba === 'favoritos' && favoritos.length === 0)
+          ? 'Você ainda não tem favoritos.'
+          : 'Nenhum Pokémon encontrado.';
+      } else {
+        elAviso.style.display = 'none';
+      }
+
+
+      elGrade.innerHTML = '';
+      filtrados.forEach(function (p) {
+        var card = document.createElement('div');
+        card.className = 'card';
+
+        var coracao = document.createElement('button');
+        coracao.className = 'coracao';
+        coracao.textContent = ehFavorito(p.id) ? '♥' : '♡';
+        coracao.setAttribute('aria-label', (ehFavorito(p.id) ? 'Desfavoritar ' : 'Favoritar ') + p.name);
+        coracao.onclick = function () { favoritar(p); };
+
+        var corpo = document.createElement('button');
+        corpo.className = 'card-botao';
+        corpo.setAttribute('aria-label', 'Ver detalhes de ' + p.name);
+        corpo.onclick = function () { abrirModal(p); };
+
+        var numero = document.createElement('span');
+        numero.className = 'numero';
+        numero.textContent = 'Nº ' + String(p.id).padStart(3, '0');
+
+        var nome = document.createElement('span');
+        nome.className = 'nome';
+        nome.textContent = p.name;
+
+        corpo.appendChild(numero);
+        corpo.appendChild(criarImagem(p));
+        corpo.appendChild(nome);
+        card.appendChild(coracao);
+        card.appendChild(corpo);
+        elGrade.appendChild(card);
+      });
+    }
+
+    function abrirModal(pokemon) {
+      var info = document.getElementById('modal-info');
+      var area = document.getElementById('modal-imagem');
+      document.getElementById('modal-nome').textContent = pokemon.name;
+      var grande = criarImagem(pokemon);
+      area.innerHTML = '';
+      area.appendChild(grande);
+      info.textContent = 'Carregando...';
+      elFundo.style.display = 'flex';
+
+      pedidoAtual++;
+      var meuPedido = pedidoAtual;
+
+      var oficial = new Image();
+      oficial.onload = function () {
+        if (meuPedido !== pedidoAtual) return;
+        grande.src = oficial.src;
+        grande.className = '';
+      };
+      oficial.src = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/' + pokemon.id + '.png';
+
+      fetch(API + '/pokemon/' + pokemon.id)
+        .then(function (res) {
+          if (!res.ok) throw new Error('A PokéAPI respondeu com erro ' + res.status);
+          return res.json();
+        })
+        .then(function (d) {
+          if (meuPedido !== pedidoAtual) return;
+          var tipos = d.types.map(function (t) {
+            return '<span class="tipo" style="background:' + (CORES[t.type.name] || '#888') + '">' + t.type.name + '</span>';
+          }).join('');
+          var habilidades = d.abilities.map(function (a) {
+            return a.ability.name.replace('-', ' ');
+          }).join(', ');
+
+          info.innerHTML =
+            '<div class="tipos">' + tipos + '</div>' +
+            '<p>Altura: ' + d.height / 10 + ' m</p>' +
+            '<p>Peso: ' + d.weight / 10 + ' kg</p>' +
+            '<p>Habilidades: ' + habilidades + '</p>';
+        })
+        .catch(function (e) {
+          if (meuPedido !== pedidoAtual) return;
+          info.innerHTML = '<p>Os detalhes precisam de internet e não foi possível acessar a PokéAPI.</p>' +
+            '<p class="tecnico"></p>';
+          info.querySelector('.tecnico').textContent = 'Detalhe técnico: ' + (e && e.message ? e.message : e);
+        });
+    }
+
+    function fecharModal() {
+      pedidoAtual++;
+      elFundo.style.display = 'none';
+    }
+
+    
+    document.getElementById('aba-todos').onclick = function () { aba = 'todos'; desenhar(); };
+    document.getElementById('aba-favoritos').onclick = function () { aba = 'favoritos'; desenhar(); };
+    elBusca.oninput = desenhar;
+    document.getElementById('fechar').onclick = fecharModal;
+    elFundo.onclick = function (e) { if (e.target === elFundo) fecharModal(); };
+
+    // começa aqui
+    desenhar();
+  </script>
+</body>
+</html>
